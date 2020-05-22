@@ -1,0 +1,145 @@
+---
+title: "MLProj"
+author: "Pradeep Gurav"
+date: "21/05/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Executive Summary
+The goal of this project is to predict the manner in which subjects did the exercise. The model will use the other variables to predict with. This report describes:  
+* how the model is built  
+* use of cross validation  
+* an estimate of expected out of sample error  
+
+
+## Getting and cleaning the Data
+```{r include=FALSE}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(e1071)
+library(randomForest)
+```
+
+```{r }
+set.seed(123)
+
+train.url <-
+        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+test.url <- 
+        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+path <- paste(getwd(),"/", sep="")
+train.file <- file.path(path, "machine-train-data.csv")
+test.file <- file.path(path, "machine-test-data.csv")
+if (!file.exists(train.file)) {
+        download.file(train.url, destfile=train.file)
+}
+if (!file.exists(test.file)) {
+        download.file(test.url, destfile=test.file)
+}
+
+train.data.raw <- read.csv(train.file, na.strings=c("NA","#DIV/0!",""))
+test.data.raw <- read.csv(test.file, na.strings=c("NA","#DIV/0!",""))
+
+## Remove irrelevant colums
+
+# Drop the first 7 columns as they're not relevant for predicting.
+train_data <- train.data.raw[,8:length(colnames(train.data.raw))]
+test_data <- test.data.raw[,8:length(colnames(test.data.raw))]
+
+# Drop colums with NAs
+train_data <- train_data[, colSums(is.na(train_data)) == 0] 
+test_data <- test_data[, colSums(is.na(test_data)) == 0] 
+
+# Check for near zero variance predictors and drop them if necessary
+nzv <- nearZeroVar(train_data,saveMetrics=TRUE)
+zero.var.ind <- sum(nzv$nzv)
+
+if ((zero.var.ind>0)) {
+        train_data <- train_data[,nzv$nzv==FALSE]
+}
+```
+
+## Split the data for cross validation
+The training data is divided into two sets. This first is a training set with 70% of the data which is used to train the model. The second is a cross validation set used to assess model performance.
+
+```{r }
+in.training <- createDataPartition(train_data$classe, p=0.70, list=F)
+train.data.final <- train_data[in.training, ]
+crossvalidata <- train_data[-in.training, ]
+```
+
+## Model Development
+
+We will use random forest as the model as implemented in the randomForest package.
+
+# Why we will use RandomForest method to build a model
+
+Because it automatically selects important variables and is robust to correlated covariates & outliers in general. 5-fold cross validation is used when applying the algorithm. A Random Forest algorithm is a way of averaging multiple deep decision trees, trained on different parts of the same data-set, with the goal of reducing the variance. This typically produces better performance at the expense of bias and interpret-ability.  
+The Cross-validation technique assesses how the results of a statistical analysis will generalize to an independent data set. In 5-fold cross-validation, the original sample is randomly partitioned into 5 equal sized sub-samples. a single sample is retained for validation and the other sub-samples are used as training data. The process is repeated 5 times and the results from the folds are averaged.
+
+
+```{r }
+control.parms <- trainControl(method="cv", 5)
+rf.model <- train(classe ~ ., data=train.data.final, method="rf",
+                 trControl=control.parms, ntree=251)
+
+# Training set accuracy
+ptraining <- predict(rf.model, train.data.final)
+print(confusionMatrix(ptraining, train.data.final$classe))
+```
+
+Obviously the model performs excellent against the training set, but we need to cross validate the performance against the held out set and see if we have avoided overfitting.
+
+## Cross Validation using the Validation dataset (Out of Sample)
+Let us now see how the model performs on the cross validation set that we held out from training.
+```{r }
+rf.predict <- predict(rf.model, crossvalidata)
+print(confusionMatrix(crossvalidata$classe, rf.predict))
+```
+
+The cross validation accuracy is 99.34% and the out-of-sample error is therefore 0.67% so the model performs rather good.
+
+# Out of sample error with the model is .67%
+
+## Test set prediction
+The prediction of the algorithm for the test set is:
+
+```{r }
+results <- predict(rf.model, 
+                   test_data[, -length(names(test_data))])
+results
+```
+
+We then save the output to files according to instructions and post it to the submission page.
+
+```{r }
+answers <- as.vector(results)
+
+pml_write_files = function(x) {
+    n = length(x)
+    for (i in 1:n) {
+        filename = paste0("problem_id_", i, ".txt")
+        write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, 
+            col.names = FALSE)
+    }
+}
+
+pml_write_files(answers)
+```
+
+
+## Reference
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human ’13). Stuttgart, Germany: ACM SIGCHI, 2013
+
+## Annexure Graph
+```{r }
+ImpObj <- varImp(rf.model)
+plot(ImpObj, main = "Top 25 influencing Variables", top = 25)
+```
