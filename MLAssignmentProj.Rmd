@@ -2,7 +2,7 @@
 title: "MLProj"
 author: "Pradeep Gurav"
 date: "23/05/2020"
-output: pdf_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -128,21 +128,6 @@ results
 ```
 
 We then save the output to files according to instructions and post it to the submission page.
-
-```{r eval=FALSE, include=FALSE}
-answers <- as.vector(results)
-
-pml_write_files = function(x) {
-    n = length(x)
-    for (i in 1:n) {
-        filename = paste0("problem_id_", i, ".txt")
-        write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, 
-            col.names = FALSE)
-    }
-}
-
-pml_write_files(answers)
-```
 
 
 ## Reference
