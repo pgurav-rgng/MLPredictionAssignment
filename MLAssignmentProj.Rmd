@@ -1,8 +1,8 @@
 ---
 title: "MLProj"
 author: "Pradeep Gurav"
-date: "21/05/2020"
-output: html_document
+date: "23/05/2020"
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -10,10 +10,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Executive Summary
-The goal of this project is to predict the manner in which subjects did the exercise. The model will use the other variables to predict with. This report describes:  
+The goal of this project is to predict the manner in which subjects did the exercise. The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. I have used RandomForest method to build the model. This report describes:  
 * how the model is built  
 * use of cross validation  
 * an estimate of expected out of sample error  
+* Predictied values for the Testdata provided
+
 
 
 ## Getting and cleaning the Data
@@ -64,6 +66,11 @@ zero.var.ind <- sum(nzv$nzv)
 if ((zero.var.ind>0)) {
         train_data <- train_data[,nzv$nzv==FALSE]
 }
+
+# Check for near zero variance predictors and drop them if necessary
+
+
+
 ```
 
 ## Split the data for cross validation
@@ -81,18 +88,21 @@ We will use random forest as the model as implemented in the randomForest packag
 
 # Why we will use RandomForest method to build a model
 
-Because it automatically selects important variables and is robust to correlated covariates & outliers in general. 5-fold cross validation is used when applying the algorithm. A Random Forest algorithm is a way of averaging multiple deep decision trees, trained on different parts of the same data-set, with the goal of reducing the variance. This typically produces better performance at the expense of bias and interpret-ability.  
-The Cross-validation technique assesses how the results of a statistical analysis will generalize to an independent data set. In 5-fold cross-validation, the original sample is randomly partitioned into 5 equal sized sub-samples. a single sample is retained for validation and the other sub-samples are used as training data. The process is repeated 5 times and the results from the folds are averaged.
-
+Because  
+* it automatically selects important variables and  
+* is robust to correlated covariates & outliers in general  
+* 5-fold cross validation is used in the algorithm.  
+* averages multiple deep decision trees  
+ 
 
 ```{r }
 control.parms <- trainControl(method="cv", 5)
 rf.model <- train(classe ~ ., data=train.data.final, method="rf",
-                 trControl=control.parms, ntree=251)
+                 trControl=control.parms, ntree=100)
 
 # Training set accuracy
-ptraining <- predict(rf.model, train.data.final)
-print(confusionMatrix(ptraining, train.data.final$classe))
+#ptraining <- predict(rf.model, train.data.final)
+#print(confusionMatrix(ptraining, train.data.final$classe))
 ```
 
 Obviously the model performs excellent against the training set, but we need to cross validate the performance against the held out set and see if we have avoided overfitting.
@@ -104,9 +114,9 @@ rf.predict <- predict(rf.model, crossvalidata)
 print(confusionMatrix(crossvalidata$classe, rf.predict))
 ```
 
-The cross validation accuracy is 99.34% and the out-of-sample error is therefore 0.67% so the model performs rather good.
+The cross validation accuracy is 99.32% and the out-of-sample error is therefore 0.68% so the model performs rather good.
 
-# Out of sample error with the model is .67%
+# Out of sample error with the model is .68%
 
 ## Test set prediction
 The prediction of the algorithm for the test set is:
@@ -119,7 +129,7 @@ results
 
 We then save the output to files according to instructions and post it to the submission page.
 
-```{r }
+```{r eval=FALSE, include=FALSE}
 answers <- as.vector(results)
 
 pml_write_files = function(x) {
